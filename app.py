@@ -668,5 +668,87 @@ else:
                     )
 
             # Full list remains accessible even if the AI formatting differs.
-            with st.expander("View all items in this section"):
+                        with st.expander("View all items in this section"):
+                st.markdown(body)
+        else:
+            st.markdown(body)
+    else:
+        st.markdown(body)
 
+    st.download_button(
+        "📥 Download This Section",
+        data=body,
+        file_name=title.lower().replace(" ", "_") + ".md",
+        mime="text/markdown",
+        key=f"download_section_{idx}",
+        use_container_width=True,
+    )
+
+    st.divider()
+    previous, next_column = st.columns(2)
+
+    with previous:
+        if idx > 0:
+            st.button(
+                "← Previous section",
+                use_container_width=True,
+                on_click=go_to_result,
+                args=(idx - 1,),
+            )
+
+    with next_column:
+        if idx < len(section_names) - 1:
+            st.button(
+                "Next section →",
+                type="primary",
+                use_container_width=True,
+                on_click=go_to_result,
+                args=(idx + 1,),
+            )
+        else:
+            st.success("You've reached the end of your strategy.")
+
+    with st.expander("📄 View complete strategy"):
+        st.markdown(st.session_state.strategy)
+
+    st.download_button(
+        "📥 Download Complete Strategy",
+        data=st.session_state.strategy,
+        file_name="ViralLab_Complete_Strategy.md",
+        mime="text/markdown",
+        use_container_width=True,
+    )
+
+    st.divider()
+    st.header("🎨 Your AI Thumbnail")
+
+    if st.session_state.thumbnail:
+        st.image(
+            st.session_state.thumbnail,
+            caption="AI-generated YouTube thumbnail",
+            use_container_width=True,
+        )
+
+        st.download_button(
+            "⬇️ Download Thumbnail",
+            data=st.session_state.thumbnail,
+            file_name="ViralLab_Thumbnail." + st.session_state.thumbnail_ext,
+            mime=st.session_state.thumbnail_mime,
+            use_container_width=True,
+        )
+    else:
+        st.info(
+            "No thumbnail is available for this run. "
+            "Your strategy is still available above."
+        )
+
+    st.button(
+        "🔄 Start a New Project",
+        use_container_width=True,
+        on_click=reset_project,
+    )
+
+st.divider()
+st.caption(
+    "ViralLab uses AI-generated content. Verify factual claims before publishing."
+)
