@@ -192,16 +192,75 @@ when information needs verification.
 if "strategy" in st.session_state:
     st.divider()
     st.header("✨ Your AI-Generated Strategy")
-    st.markdown(st.session_state["strategy"])
+
+    strategy = st.session_state["strategy"]
 
     st.download_button(
-        "📥 Download Your Strategy",
-        data=st.session_state["strategy"],
+        "📥 Download Full Strategy",
+        data=strategy,
         file_name="virallab_strategy.md",
-        mime="text/markdown"
+        mime="text/markdown",
+        key="download_full_strategy"
     )
 
-st.caption(
-    "Powered by Groq. AI-generated content should be "
-    "checked before publishing."
-)
+    st.caption("Copy any section below with one tap.")
+
+    sections = [
+        "1. CONTENT ANGLE",
+        "2. FIVE VIDEO IDEAS",
+        "3. FIVE CLICKABLE TITLES",
+        "4. THUMBNAIL CONCEPT",
+        "5. OPENING HOOK",
+        "6. COMPLETE VIDEO SCRIPT",
+        "7. SEO DESCRIPTION",
+        "8. KEYWORDS AND HASHTAGS",
+        "9. GROWTH PLAN",
+    ]
+
+    import re
+
+    found = []
+    for i, heading in enumerate(sections):
+        pattern = re.compile(
+            r"(?im)^\s*(?:#+\s*)?"
+            + re.escape(heading)
+            + r"\s*:?\s*$"
+        )
+        match = pattern.search(strategy)
+        if match:
+            found.append((match.start(), heading, match.end()))
+
+    if not found:
+        st.markdown(strategy)
+        st.info(
+            "The AI used different headings this time. "
+            "You can still download the full strategy above."
+        )
+    else:
+        found.sort(key=lambda item: item[0])
+
+        for i, (start, heading, body_start) in enumerate(found):
+            end = (
+                found[i + 1][0]
+                if i + 1 < len(found)
+                else len(strategy)
+            )
+            content = strategy[body_start:end].strip()
+
+            with st.expander(heading, expanded=(i == 0)):
+                st.markdown(content or "_No content in this section._")
+
+                st.text_area(
+                    "Copyable text",
+                    value=content,
+                    height=180,
+                    key=f"copy_text_{i}"
+                )
+
+                st.caption(
+                    "Tap inside the text, then use Select all → Copy."
+                )
+
+    st.divider()
+    st.success("Strategy saved in this session.")
+    
