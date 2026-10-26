@@ -207,32 +207,32 @@ if "strategy" in st.session_state:
 
     st.caption("Copy any section below with one tap.")
 
-    sections = [
-        "1. CONTENT ANGLE",
-        "2. FIVE VIDEO IDEAS",
-        "3. FIVE CLICKABLE TITLES",
-        "4. THUMBNAIL CONCEPT",
-        "5. OPENING HOOK",
-        "6. COMPLETE VIDEO SCRIPT",
-        "7. SEO DESCRIPTION",
-        "8. KEYWORDS AND HASHTAGS",
-        "9. GROWTH PLAN",
-    ]
+sections = [
+    "CONTENT ANGLE",
+    "FIVE VIDEO IDEAS",
+    "FIVE CLICKABLE TITLES",
+    "THUMBNAIL CONCEPT",
+    "OPENING HOOK",
+    "COMPLETE VIDEO SCRIPT",
+    "SEO DESCRIPTION",
+    "KEYWORDS AND HASHTAGS",
+    "GROWTH PLAN",
+]
 
-    import re
+import re
 
-    found = []
-    for i, heading in enumerate(sections):
-        pattern = re.compile(
-            r"(?im)^\s*(?:#+\s*)?"
-            + re.escape(heading)
-            + r"\s*:?\s*$"
-        )
-        match = pattern.search(strategy)
-        if match:
-            found.append((match.start(), heading, match.end()))
-
-    if not found:
+found = []
+for i, heading in enumerate(sections):
+    pattern = re.compile(
+        r"(?im)^\s*(?:#+\s*)?(?:\d+\.\s*)?"
+        + re.escape(heading)
+        + r"\s*:?\s*$"
+    )
+    match = pattern.search(strategy)
+    if match:
+        found.append((match.start(), heading, match.end()))
+        
+        if not found:
         st.markdown(strategy)
         st.info(
             "The AI used different headings this time. "
