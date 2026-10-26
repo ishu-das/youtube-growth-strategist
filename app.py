@@ -232,7 +232,7 @@ for i, heading in enumerate(sections):
     if match:
         found.append((match.start(), heading, match.end()))
         
-        if not found:
+    if not found:
         st.markdown(strategy)
         st.info(
             "The AI used different headings this time. "
