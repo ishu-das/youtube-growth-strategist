@@ -1,5 +1,7 @@
 
 import streamlit as st
+from groq import Groq
+from groq import APIStatusError, APIConnectionError
 
 st.set_page_config(
     page_title="ViralLab | YouTube Growth Strategist",
@@ -28,100 +30,178 @@ h1 {
 """, unsafe_allow_html=True)
 
 st.title("🎬 ViralLab")
-st.subheader("Your YouTube Growth Strategist")
-st.write("Generate video ideas, clickable titles, thumbnail tips, and a script outline.")
+st.subheader("Your AI YouTube Growth Strategist")
+st.write(
+    "Create custom video ideas, titles, thumbnail concepts, "
+    "scripts, SEO descriptions, and growth strategies."
+)
 
 st.divider()
 
-col1, col2 = st.columns(2)
+left, right = st.columns(2)
 
-with col1:
+with left:
     niche = st.text_input(
         "Channel niche",
-        placeholder="e.g. Gaming, Tech, Education"
+        placeholder="e.g. Technology, Gaming, Education"
     )
     topic = st.text_input(
         "Video topic",
         placeholder="e.g. Best budget gaming phones"
     )
 
-with col2:
+with right:
     audience = st.text_input(
         "Target audience",
-        placeholder="e.g. Beginners, students, gamers"
+        placeholder="e.g. Indian students and gamers"
     )
     style = st.selectbox(
         "Video style",
-        ["Educational", "Entertainment", "Tutorial", "Review", "Storytelling"]
+        ["Educational", "Entertainment", "Tutorial",
+         "Review", "Storytelling"]
     )
 
-if st.button("🚀 Generate My Strategy"):
-    niche = niche.strip() or "General"
-    topic = topic.strip() or "your next video"
-    audience = audience.strip() or "beginners"
+language = st.selectbox(
+    "Output language",
+    ["English", "Hindi", "Hinglish"]
+)
 
-    st.success("Your content strategy is ready!")
+if st.button("🚀 Generate My AI Strategy"):
+    if not topic.strip():
+        st.warning("Enter a video topic first.")
+    else:
+        try:
+            api_key = st.secrets["GROQ_API_KEY"]
+            client = Groq(api_key=api_key)
 
-    st.header("💡 Video Ideas")
-    ideas = [
-        f"5 Mistakes People Make About {topic}",
-        f"I Tried {topic}: Here's What I Learned",
-        f"The Beginner's Guide to {topic}",
-        f"{topic}: What I Wish I Knew Earlier",
-        f"The Truth About {topic}"
-    ]
+            prompt = f"""
+You are an expert YouTube content strategist.
+Create a specific, practical strategy for this video.
 
-    for i, idea in enumerate(ideas, 1):
-        st.write(f"**{i}.** {idea}")
+Channel niche: {niche.strip() or "General"}
+Topic: {topic.strip()}
+Target audience: {audience.strip() or "General viewers"}
+Video style: {style}
+Language: {language}
 
-    st.header("🔥 Clickable Title Ideas")
-    titles = [
-        f"{topic}: What Nobody Tells You",
-        f"Stop Making These {topic} Mistakes",
-        f"I Tested {topic} So You Don't Have To"
-    ]
+Write in the requested language. Include:
 
-    for title in titles:
-        st.write(f"📌 {title}")
+1. CONTENT ANGLE
+Explain the viewer's problem and why the video matters.
 
-    st.header("🖼️ Thumbnail Strategy")
-    st.write(
-        "Use one clear subject, strong contrast, an expressive face "
-        "or relevant object, and 2–4 large readable words. "
-        "Make sure the thumbnail honestly represents the video."
+2. FIVE VIDEO IDEAS
+Make each idea distinct and specific.
+
+3. FIVE CLICKABLE TITLES
+Use curiosity without misleading clickbait.
+
+4. THUMBNAIL CONCEPT
+Describe the composition, subject, colors, and 2-4 words
+of thumbnail text.
+
+5. OPENING HOOK
+Write a compelling opening of around 15 seconds.
+
+6. COMPLETE VIDEO SCRIPT
+Include the hook, introduction, detailed main points,
+examples, transitions, conclusion, and call to action.
+Make it natural to speak aloud.
+
+7. SEO DESCRIPTION
+Write a ready-to-use YouTube description.
+
+8. KEYWORDS AND HASHTAGS
+Suggest relevant search phrases and hashtags.
+Do not promise search rankings.
+
+9. GROWTH PLAN
+Give five actionable recommendations for this video.
+
+Be specific, avoid filler, and do not invent current facts,
+product specifications, or statistics. Mark uncertainty
+when information needs verification.
+"""
+
+            with st.spinner(
+                "Groq is generating your YouTube strategy..."
+            ):
+                result = client.chat.completions.create(
+                    model="openai/gpt-oss-20b",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are a helpful, creative, "
+                                "practical YouTube strategist."
+                            )
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.7,
+                    max_completion_tokens=5000
+                )
+
+            strategy = result.choices[0].message.content
+
+            if strategy:
+                st.session_state["strategy"] = strategy
+                st.success("Your AI strategy is ready!")
+            else:
+                st.error("The AI returned an empty response.")
+
+        except KeyError:
+            st.error(
+                "API key missing. Add GROQ_API_KEY in "
+                "Streamlit app Secrets settings."
+            )
+        except APIStatusError as error:
+            if error.status_code == 429:
+                st.error(
+                    "The API rate limit or usage quota was reached. "
+                    "Check your Groq Console limits and try later."
+                )
+            elif error.status_code in (401, 403):
+                st.error(
+                    "The API key is invalid or does not have access. "
+                    "Check your Groq key and account."
+                )
+            elif error.status_code == 404:
+                st.error(
+                    "The selected model may be unavailable. "
+                    "Check the active models in Groq Console."
+                )
+            else:
+                st.error(
+                    f"Groq returned an API error "
+                    f"(HTTP {error.status_code}). Check the app logs."
+                )
+        except APIConnectionError:
+            st.error(
+                "Could not connect to Groq. Check the connection "
+                "and try again."
+            )
+        except Exception as error:
+            st.error(
+                f"Unexpected error: {type(error).__name__}. "
+                "Check Manage app → Logs."
+            )
+
+if "strategy" in st.session_state:
+    st.divider()
+    st.header("✨ Your AI-Generated Strategy")
+    st.markdown(st.session_state["strategy"])
+
+    st.download_button(
+        "📥 Download Your Strategy",
+        data=st.session_state["strategy"],
+        file_name="virallab_strategy.md",
+        mime="text/markdown"
     )
 
-    st.header("📝 Video Script Outline")
-    st.markdown(f"""
-**Video style:** {style}
-
-**1. Hook (first 5–10 seconds)**  
-Ask a surprising question or show an interesting result related to **{topic}**.
-
-**2. Introduction**  
-Tell viewers what they will learn and why it matters to them.
-
-**3. Main content**  
-Explain three useful points about **{topic}** for **{audience}**.
-
-**4. Payoff**  
-Summarize the most useful lesson or demonstrate the result.
-
-**5. Call to action**  
-Invite viewers to comment with their experience and subscribe if they found the video useful.
-""")
-
-    st.header("📈 Growth Tips")
-    st.write(f"""
-- **Niche:** {niche}
-- **Audience:** {audience}
-- Make the opening interesting immediately.
-- Deliver on the promise made by your title.
-- Review audience retention and click-through rate after publishing.
-""")
-
-    st.caption(
-        "Note: This version uses templates, not a live AI model. "
-        "Real AI-generated strategies require an AI API integration."
-    )
-    
+st.caption(
+    "Powered by Groq. AI-generated content should be "
+    "checked before publishing."
+)
