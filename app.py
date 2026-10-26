@@ -687,4 +687,6 @@ else:
     else:
         st.info(
             "No thumbnail is available for this run. "
-            "Your strat
+    st.caption(
+       "Your strategy is ready. Verify factual claims before publishing."
+            )
