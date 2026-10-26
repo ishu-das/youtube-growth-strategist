@@ -684,9 +684,19 @@ else:
             mime=st.session_state.thumbnail_mime,
             use_container_width=True,
         )
-    else:
+        else:
         st.info(
             "No thumbnail is available for this run. "
-    st.caption(
-       "Your strategy is ready. Verify factual claims before publishing."
-            )
+            "Your strategy is still available above."
+        )
+
+    st.button(
+        "🔄 Start a New Project",
+        use_container_width=True,
+        on_click=new_project,
+    )
+
+st.divider()
+st.caption(
+    "ViralLab uses AI-generated content. Verify factual claims before publishing."
+)
