@@ -1,4 +1,5 @@
 
+
 import re
 import requests
 import streamlit as st
@@ -667,7 +668,7 @@ else:
         use_container_width=True,
     )
 
-    st.divider()
+        st.divider()
     st.header("🎨 Your AI Thumbnail")
 
     if st.session_state.thumbnail:
@@ -684,7 +685,7 @@ else:
             mime=st.session_state.thumbnail_mime,
             use_container_width=True,
         )
-        else:
+    else:
         st.info(
             "No thumbnail is available for this run. "
             "Your strategy is still available above."
