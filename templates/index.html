@@ -1,1 +1,85 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ViralLab | YouTube Growth Strategist</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="navbar">
+    <a class="logo" href="/">Viral<span>Lab.</span></a>
+    <span class="status">CREATOR STUDIO</span>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="eyebrow">✦ YOUR YOUTUBE GROWTH TOOLKIT</div>
+      <h1>Turn your next idea into<br><span>a video worth watching.</span></h1>
+      <p>Plan smarter videos with ideas, clickable titles, thumbnail tips,
+      and a script structure built around your audience.</p>
+    </section>
+
+    <section class="workspace">
+      <div class="section-heading">
+        <span class="step">01</span>
+        <div>
+          <h2>Build your video strategy</h2>
+          <p>Tell us what you're creating.</p>
+        </div>
+      </div>
+
+      <form id="strategyForm">
+        <label for="niche">Your channel niche</label>
+        <input id="niche" name="niche" placeholder="e.g. technology, fitness, education" required>
+
+        <label for="topic">Video topic or idea</label>
+        <input id="topic" name="topic" placeholder="e.g. Best phones under ₹20,000" required>
+
+        <label for="audience">Target audience</label>
+        <input id="audience" name="audience" placeholder="e.g. students, beginners, gamers">
+
+        <button id="generateBtn" type="submit">Generate my strategy <span>↗</span></button>
+      </form>
+      <p class="note">Suggestions are starting points, not guarantees of viral success.</p>
+    </section>
+
+    <section id="results" class="results" hidden>
+      <div class="section-heading">
+        <span class="step">02</span>
+        <div>
+          <h2>Your video blueprint</h2>
+          <p>Use these ideas to plan your next upload.</p>
+        </div>
+      </div>
+
+      <div class="result-card">
+        <h3>💡 Video ideas</h3>
+        <ul id="ideas"></ul>
+      </div>
+
+      <div class="result-card">
+        <h3>✍️ Title suggestions</h3>
+        <ul id="titles"></ul>
+      </div>
+
+      <div class="result-card">
+        <h3>🖼️ Thumbnail direction</h3>
+        <p id="thumbnail"></p>
+      </div>
+
+      <div class="result-card">
+        <h3>🎬 Script structure</h3>
+        <pre id="script"></pre>
+      </div>
+    </section>
+
+    <footer>
+      <p>ViralLab © 2026 · Create with purpose. Improve with data.</p>
+    </footer>
+  </main>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
