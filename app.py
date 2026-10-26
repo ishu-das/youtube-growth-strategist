@@ -3,45 +3,37 @@ import re
 import requests
 import streamlit as st
 from groq import Groq
-from requests.exceptions import RequestException
 
-# --------------------------------------------------
-# PAGE SETUP
-# --------------------------------------------------
+# -------------------- APP CONFIG --------------------
 
 st.set_page_config(
-    page_title="ViralLab | YouTube Growth Strategist",
-    page_icon="🎬",
-    layout="wide"
+    page_title="ViralLab | YouTube Growth Studio",
+    page_icon="🚀",
+    layout="wide",
 )
 
 st.markdown("""
 <style>
-.stApp {
-    background: #0e1117;
-    color: #f5f5f5;
-}
-h1 {
-    color: #ff4b5c;
-}
-.stButton > button {
-    background: #ff4b5c;
-    color: white;
-    border-radius: 10px;
-    border: none;
-    font-weight: bold;
-    width: 100%;
-}
-div[data-testid="stExpander"] {
-    border: 1px solid #343844;
-    border-radius: 10px;
-}
+    .block-container {
+        max-width: 1100px;
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+    }
+    .hero {
+        padding: 1.5rem;
+        border-radius: 18px;
+        background: linear-gradient(120deg, #25283b, #161b2a);
+        border: 1px solid #3b4056;
+        margin-bottom: 1.5rem;
+    }
+    .muted {
+        color: #aab0c2;
+    }
+    div[data-testid="stExpander"] {
+        border-radius: 12px;
+    }
 </style>
 """, unsafe_allow_html=True)
-
-# --------------------------------------------------
-# HELPERS
-# --------------------------------------------------
 
 SECTIONS = [
     "CONTENT ANGLE",
@@ -55,426 +47,452 @@ SECTIONS = [
     "GROWTH PLAN",
 ]
 
+# -------------------- AI PROMPTS --------------------
 
-def split_strategy(text):
-    """Split AI output using tolerant heading matching."""
-    found = []
+def make_strategy_prompt(topic, niche, audience, style, language):
+    headings = "\n".join(SECTIONS)
 
-    for heading in SECTIONS:
-        pattern = re.compile(
-            r"(?im)^\s*(?:#{1,6}\s*)?(?:\d+[\.\)]\s*)?"
-            + re.escape(heading)
-            + r"\s*:?\s*$"
-        )
-        match = pattern.search(text)
-
-        if match:
-            found.append(
-                (match.start(), heading, match.end())
-            )
-
-    found.sort(key=lambda item: item[0])
-
-    # Ignore duplicate or out-of-order heading matches.
-    unique = []
-    seen = set()
-
-    for item in found:
-        if item[1] not in seen:
-            unique.append(item)
-            seen.add(item[1])
-
-    result = []
-
-    for i, (start, heading, body_start) in enumerate(unique):
-        end = (
-            unique[i + 1][0]
-            if i + 1 < len(unique)
-            else len(text)
-        )
-        body = text[body_start:end].strip()
-        result.append((heading, body))
-
-    return result
-
-
-def make_prompt(niche, topic, audience, style, language):
     return f"""
-You are an expert YouTube strategist and scriptwriter.
+You are ViralLab, an expert YouTube content strategist.
 
-Create a detailed, useful YouTube content plan.
+Create a practical, specific YouTube content plan.
 
-CHANNEL NICHE: {niche}
+NICHE: {niche}
 VIDEO TOPIC: {topic}
 TARGET AUDIENCE: {audience}
 VIDEO STYLE: {style}
 OUTPUT LANGUAGE: {language}
 
-FORMATTING RULES:
-- Use exactly the nine headings below, each on its own line.
-- Keep the headings in English exactly as written.
-- Do not number the headings.
-- Write the rest of the content in the requested language.
-- Make the script natural to speak aloud.
-- Do not use tables.
-- Do not invent current prices, specifications, release dates,
-  benchmarks, or other facts.
-- Mark unverified claims clearly and tell the creator to verify them.
-- Do not claim that titles will definitely go viral or rank first.
+IMPORTANT RULES:
+- Write the actual content in {language}.
+- Use the following nine headings EXACTLY as written below.
+- Put each heading on its own line.
+- Do not number or rename the headings.
+- Do not repeat the same idea in multiple sections.
+- Give exactly five distinct video ideas.
+- Give exactly five distinct clickable titles.
+- Make the script natural, engaging and suitable for the target audience.
+- Include a strong opening hook and a clear ending in the script.
+- Make the SEO description and hashtags relevant to the topic.
+- Make the growth plan practical for a small or new creator.
+- Never invent product specifications, prices, statistics or test results.
+- Keep the thumbnail concept visual and suitable for a 16:9 image.
+- Use Markdown formatting under each heading.
+- Do not put the complete answer inside a code block.
 
-CONTENT ANGLE
-Explain the audience's problem and the video's unique value.
+Use these headings in this exact order:
 
-FIVE VIDEO IDEAS
-Give five distinct ideas, each with a short explanation.
-
-FIVE CLICKABLE TITLES
-Give five interesting and honest title options.
-
-THUMBNAIL CONCEPT
-Describe the composition, main subject, colors, emotion,
-background, and 2-4 words of thumbnail text.
-
-OPENING HOOK
-Write an engaging opening of approximately 15 seconds.
-
-COMPLETE VIDEO SCRIPT
-Write a complete script with an opening, introduction,
-detailed main points, transitions, examples, conclusion,
-and call to action. Use timestamps where appropriate.
-
-SEO DESCRIPTION
-Write a ready-to-use YouTube description with a natural CTA.
-
-KEYWORDS AND HASHTAGS
-Suggest relevant keywords and a concise set of hashtags.
-
-GROWTH PLAN
-Give five practical recommendations for improving the video.
-
-Be specific, helpful, and ready for a creator to edit and publish.
-"""
+{headings}
+""".strip()
 
 
-# --------------------------------------------------
-# HEADER AND INPUTS
-# --------------------------------------------------
+def split_strategy(text):
+    """Split the generated strategy into its nine named sections."""
+    found = []
 
-st.title("🎬 ViralLab")
-st.subheader("Your AI YouTube Growth Strategist")
-st.write(
-    "Plan videos, generate scripts, create thumbnail concepts, "
-    "and build a practical publishing strategy."
-)
+    for title in SECTIONS:
+        pattern = re.compile(
+            r"(?im)^\s*(?:#{1,6}\s*)?"
+            r"(?:\d+[\.\):\-]\s*)?"
+            + re.escape(title)
+            + r"\s*:?\s*$"
+        )
 
-with st.form("strategy_form"):
+        match = pattern.search(text)
+
+        if match:
+            found.append((match.start(), match.end(), title))
+
+    found.sort(key=lambda item: item[0])
+    result = {}
+
+    for index, (_, end, title) in enumerate(found):
+        next_start = (
+            found[index + 1][0]
+            if index + 1 < len(found)
+            else len(text)
+        )
+
+        result[title] = text[end:next_start].strip()
+
+    return result
+
+
+def make_thumbnail_prompt(topic, niche, audience, concept, style, extra):
+    style_descriptions = {
+        "Bold YouTube creator style":
+            "bold composition, dramatic lighting, vibrant contrast",
+        "Photorealistic tech review":
+            "photorealistic products, realistic materials, studio lighting",
+        "Minimal and professional":
+            "minimal composition, clean background, elegant lighting",
+        "Gaming and entertainment":
+            "dynamic gaming atmosphere, cinematic lighting, energetic colors",
+        "Educational and documentary":
+            "clear visual storytelling, cinematic photography, thoughtful composition",
+    }
+
+    visual_style = style_descriptions.get(
+        style, style_descriptions["Bold YouTube creator style"]
+    )
+
+    details = f" Additional visual direction: {extra}." if extra.strip() else ""
+
+    return f"""
+Create a professional 16:9 YouTube thumbnail image.
+
+Video topic: {topic}
+Content niche: {niche}
+Target audience: {audience}
+Thumbnail concept: {concept}
+
+Visual direction: {visual_style}.
+Create one clear focal subject, strong contrast, balanced composition,
+good visual hierarchy and space for a title to be added later.
+No text, no letters, no logos, no watermarks.
+The image must communicate the topic clearly at small thumbnail size.
+{details}
+""".strip()
+
+
+def generate_thumbnail(prompt, api_key):
+    """Generate an image through the Pollinations image API."""
+    url = (
+        "https://gen.pollinations.ai/image/"
+        + requests.utils.quote(prompt, safe="")
+    )
+
+    response = requests.get(
+        url,
+        params={
+            "model": "black-forest-labs/flux.2-klein-4b",
+            "width": 1280,
+            "height": 720,
+        },
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=180,
+    )
+
+    response.raise_for_status()
+
+    content_type = response.headers.get("Content-Type", "").lower()
+
+    if not content_type.startswith("image/"):
+        raise ValueError(
+            "The image service did not return an image. "
+            "Check your Pollinations account and API response."
+        )
+
+    if "png" in content_type:
+        extension = "png"
+        mime_type = "image/png"
+    elif "webp" in content_type:
+        extension = "webp"
+        mime_type = "image/webp"
+    else:
+        extension = "jpg"
+        mime_type = "image/jpeg"
+
+    return response.content, extension, mime_type
+
+
+# -------------------- SESSION STATE --------------------
+
+for key, default in {
+    "strategy": "",
+    "sections": {},
+    "thumbnail": None,
+    "thumbnail_ext": "jpg",
+    "thumbnail_mime": "image/jpeg",
+    "last_topic": "",
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
+
+
+# -------------------- HEADER --------------------
+
+st.markdown("""
+<div class="hero">
+    <h1>🚀 ViralLab Studio</h1>
+    <p>Your AI-powered YouTube content workspace.</p>
+    <p class="muted">
+        Plan videos, write scripts, improve discoverability
+        and generate thumbnail concepts in one workflow.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+st.caption("Powered by Groq for strategy and Pollinations for image generation.")
+
+# -------------------- INPUT FORM --------------------
+
+with st.form("viral_lab_form"):
+    st.subheader("🎯 Plan your next video")
+
     col1, col2 = st.columns(2)
 
     with col1:
-        niche = st.text_input(
-            "Channel niche",
-            placeholder="Technology, gaming, education..."
+        niche = st.selectbox(
+            "Content niche",
+            [
+                "Gaming",
+                "Technology",
+                "Education",
+                "Entertainment",
+                "Lifestyle",
+                "Finance",
+                "Fitness",
+                "Travel",
+                "Food",
+                "Other",
+            ],
         )
+
         topic = st.text_input(
             "Video topic",
-            placeholder="Best budget gaming phones"
+            placeholder="e.g. Best budget gaming phones in 2026",
+        )
+
+        audience = st.text_input(
+            "Target audience",
+            value="Indian students and casual viewers",
         )
 
     with col2:
-        audience = st.text_input(
-            "Target audience",
-            placeholder="Indian students and gamers"
-        )
         style = st.selectbox(
             "Video style",
             [
-                "Educational",
-                "Entertainment",
+                "Informative",
                 "Tutorial",
+                "Comparison",
                 "Review",
-                "Storytelling"
-            ]
+                "Listicle",
+                "Storytelling",
+                "Entertainment",
+            ],
         )
 
-    language = st.selectbox(
-        "Output language",
-        ["English", "Hindi", "Hinglish"]
+        language = st.selectbox(
+            "Content language",
+            [
+                "English",
+                "Hindi",
+                "Hinglish",
+                "Bengali",
+                "Punjabi",
+            ],
+        )
+
+        thumbnail_style = st.selectbox(
+            "Thumbnail visual style",
+            [
+                "Bold YouTube creator style",
+                "Photorealistic tech review",
+                "Minimal and professional",
+                "Gaming and entertainment",
+                "Educational and documentary",
+            ],
+        )
+
+    extra_details = st.text_input(
+        "Optional thumbnail details",
+        placeholder="e.g. red and blue lighting, smartphone, dark background",
     )
 
     submitted = st.form_submit_button(
-        "🚀 Generate My AI Strategy"
+        "✨ Generate Strategy + Thumbnail",
+        type="primary",
+        use_container_width=True,
     )
 
 
-# --------------------------------------------------
-# GROQ AI TEXT GENERATION
-# --------------------------------------------------
+# -------------------- GENERATION WORKFLOW --------------------
 
 if submitted:
     if not topic.strip():
-        st.warning("Please enter a video topic.")
-    else:
-        api_key = st.secrets.get("GROQ_API_KEY", "")
+        st.error("Please enter a video topic first.")
+        st.stop()
 
-        if not api_key:
-            st.error(
-                "GROQ_API_KEY is missing. Add it in "
-                "Streamlit app settings under Secrets."
+    groq_key = st.secrets.get("GROQ_API_KEY", "")
+    pollinations_key = st.secrets.get("POLLINATIONS_API_KEY", "")
+
+    if not groq_key:
+        st.error("GROQ_API_KEY is missing from Streamlit Secrets.")
+        st.stop()
+
+    st.session_state.strategy = ""
+    st.session_state.sections = {}
+    st.session_state.thumbnail = None
+    st.session_state.last_topic = topic.strip()
+
+    with st.spinner("🧠 Creating your YouTube strategy..."):
+        try:
+            client = Groq(api_key=groq_key)
+
+            completion = client.chat.completions.create(
+                model="openai/gpt-oss-20b",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a precise YouTube growth strategist. "
+                            "Follow all requested headings and formatting rules."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": make_strategy_prompt(
+                            topic.strip(),
+                            niche,
+                            audience.strip(),
+                            style,
+                            language,
+                        ),
+                    },
+                ],
+                temperature=0.6,
+                max_completion_tokens=5000,
             )
-        else:
-            prompt = make_prompt(
-                niche.strip() or "General",
-                topic.strip(),
-                audience.strip() or "General viewers",
-                style,
-                language
-            )
 
-            try:
-                client = Groq(api_key=api_key)
+            strategy = completion.choices[0].message.content or ""
 
-                with st.spinner(
-                    "Groq is building your strategy..."
-                ):
-                    response = client.chat.completions.create(
-                        model="openai/gpt-oss-20b",
-                        messages=[
-                            {
-                                "role": "system",
-                                "content": (
-                                    "You are a practical, creative "
-                                    "YouTube strategist. Follow the "
-                                    "requested headings exactly."
-                                )
-                            },
-                            {
-                                "role": "user",
-                                "content": prompt
-                            }
-                        ],
-                        temperature=0.6,
-                        max_completion_tokens=5000
-                    )
+            if not strategy.strip():
+                st.error("The AI returned an empty strategy. Please try again.")
+                st.stop()
 
-                strategy = (
-                    response.choices[0].message.content or ""
-                ).strip()
+            st.session_state.strategy = strategy
+            st.session_state.sections = split_strategy(strategy)
 
-                if strategy:
-                    st.session_state["strategy"] = strategy
-                    st.session_state["strategy_topic"] = topic.strip()
-                    st.session_state["strategy_niche"] = (
-                        niche.strip() or "General"
-                    )
-                    st.session_state.pop("thumbnail_bytes", None)
-                    st.success("Your AI strategy is ready!")
-                else:
-                    st.error(
-                        "The AI returned an empty response. Try again."
-                    )
+        except Exception as exc:
+            st.error(f"Strategy generation failed: {exc}")
+            st.stop()
 
-            except Exception as error:
-                st.error(
-                    "Groq could not generate the strategy. "
-                    "Check your API key, model access, usage limits, "
-                    "and Streamlit logs."
-                )
-                st.caption(
-                    f"Technical error: {type(error).__name__}"
-                )
+    st.success("Your strategy is ready!")
 
-
-# --------------------------------------------------
-# DISPLAY THE GENERATED STRATEGY
-# --------------------------------------------------
-
-if "strategy" in st.session_state:
-    strategy = st.session_state["strategy"]
-
-    st.divider()
-    st.header("✨ Your AI-Generated Strategy")
-
-    st.download_button(
-        "📥 Download Full Strategy",
-        data=strategy,
-        file_name="virallab_strategy.md",
-        mime="text/markdown",
-        key="download_strategy"
-    )
-
-    sections = split_strategy(strategy)
-
-    if sections:
-        st.caption(
-            "Open any section. Use the copy icon in its text block "
-            "to copy the content."
+    if pollinations_key:
+        concept = st.session_state.sections.get(
+            "THUMBNAIL CONCEPT",
+            f"A compelling visual for a YouTube video about {topic}.",
         )
 
-        for index, (heading, body) in enumerate(sections):
-            with st.expander(
-                heading.title(),
-                expanded=(index == 0)
-            ):
-                if body:
-                    st.markdown(body)
-                    st.code(body, language=None)
-                else:
-                    st.info("No content was returned for this section.")
+        image_prompt = make_thumbnail_prompt(
+            topic.strip(),
+            niche,
+            audience.strip(),
+            concept,
+            thumbnail_style,
+            extra_details,
+        )
 
-        if len(sections) < len(SECTIONS):
-            st.info(
-                f"Recognized {len(sections)} of {len(SECTIONS)} "
-                "sections. The full strategy is still available "
-                "to download above."
-            )
+        with st.spinner("🎨 Creating your thumbnail... This may take a while."):
+            try:
+                image_bytes, extension, mime_type = generate_thumbnail(
+                    image_prompt,
+                    pollinations_key,
+                )
+
+                st.session_state.thumbnail = image_bytes
+                st.session_state.thumbnail_ext = extension
+                st.session_state.thumbnail_mime = mime_type
+
+                st.success("Your thumbnail is ready!")
+
+            except requests.RequestException as exc:
+                st.warning(
+                    "Your strategy is ready, but thumbnail generation "
+                    f"failed because of a network or API error: {exc}"
+                )
+            except Exception as exc:
+                st.warning(
+                    "Your strategy is ready, but the thumbnail could not "
+                    f"be generated: {exc}"
+                )
     else:
         st.warning(
-            "The headings could not be separated. "
-            "The complete strategy is shown below."
+            "Your strategy is ready. Add POLLINATIONS_API_KEY to "
+            "Streamlit Secrets to enable automatic thumbnail generation."
         )
-        st.markdown(strategy)
+
+
+# -------------------- RESULTS DASHBOARD --------------------
+
+if st.session_state.strategy:
+    st.divider()
+    st.header("✨ Your AI-Generated Strategy")
+    st.caption(
+        "Explore each section below. Download individual sections "
+        "or the complete strategy."
+    )
+
+    st.download_button(
+        "📥 Download Complete Strategy",
+        data=st.session_state.strategy,
+        file_name="ViralLab_YouTube_Strategy.md",
+        mime="text/markdown",
+        use_container_width=True,
+    )
+
+    sections = st.session_state.sections
+
+    if len(sections) < len(SECTIONS):
+        st.info(
+            "Some section headings were not detected. "
+            "The complete strategy is still available below."
+        )
+
+    for title in SECTIONS:
+        body = sections.get(title)
+
+        if not body:
+            continue
+
+        with st.expander(title.title(), expanded=False):
+            st.markdown(body)
+
+            st.download_button(
+                f"📥 Download {title.title()}",
+                data=body,
+                file_name=title.lower().replace(" ", "_") + ".md",
+                mime="text/markdown",
+                key=f"download_{title}",
+            )
 
     with st.expander("📄 View complete strategy"):
-        st.markdown(strategy)
+        st.markdown(st.session_state.strategy)
 
-    # --------------------------------------------------
-    # OPTIONAL ACTUAL THUMBNAIL IMAGE GENERATION
-    # --------------------------------------------------
+    # -------------------- THUMBNAIL --------------------
 
     st.divider()
-    st.header("🖼️ Thumbnail Image Generator")
+    st.header("🎨 AI Thumbnail")
 
-    st.write(
-        "Create a 16:9 thumbnail image based on your video topic. "
-        "Image generation requires a separate Pollinations API key."
-    )
-
-    thumbnail_style = st.selectbox(
-        "Thumbnail visual style",
-        [
-            "Photorealistic tech review",
-            "Gaming neon",
-            "Minimal and premium",
-            "Bold YouTube creator style",
-            "Cinematic storytelling"
-        ],
-        key="thumbnail_style"
-    )
-
-    thumbnail_subject = st.text_input(
-        "Extra thumbnail details (optional)",
-        placeholder="A phone, dramatic lighting, blue background...",
-        key="thumbnail_subject"
-    )
-
-    if st.button("🎨 Generate Thumbnail Image"):
-        image_key = st.secrets.get(
-            "POLLINATIONS_API_KEY", ""
-        )
-
-        if not image_key:
-            st.warning(
-                "Image generation is optional. To enable it, create "
-                "a key at enter.pollinations.ai and add "
-                "POLLINATIONS_API_KEY to Streamlit Secrets."
-            )
-        else:
-            image_prompt = (
-                "Create a polished 16:9 YouTube thumbnail image "
-                "for the topic: "
-                + st.session_state.get("strategy_topic", "YouTube video")
-                + ". Channel niche: "
-                + st.session_state.get("strategy_niche", "General")
-                + ". Visual style: "
-                + thumbnail_style
-                + ". Extra details: "
-                + (thumbnail_subject.strip() or "strong visual contrast")
-                + ". One clear focal subject, strong composition, "
-                "high contrast, professional lighting, crisp details. "
-                "Leave clean space for a title to be added later. "
-                "Avoid logos, watermarks, and tiny text."
-            )
-
-            try:
-                with st.spinner(
-                    "Generating the thumbnail image. This may take a while..."
-                ):
-                    image_response = requests.get(
-                        "https://gen.pollinations.ai/image/"
-                        + requests.utils.quote(image_prompt, safe=""),
-                        params={
-                            "model": "black-forest-labs/flux.2-klein-4b",
-                            "width": 1280,
-                            "height": 720
-                        },
-                        headers={
-                            "Authorization": f"Bearer {image_key}"
-                        },
-                        timeout=180
-                    )
-
-                    image_response.raise_for_status()
-
-                    content_type = image_response.headers.get(
-                        "Content-Type", ""
-                    )
-
-                    if not content_type.startswith("image/"):
-                        raise ValueError(
-                            "The image service did not return an image."
-                        )
-
-                    image_bytes = image_response.content
-
-                    if not image_bytes:
-                        raise ValueError(
-                            "The image service returned an empty file."
-                        )
-
-                    st.session_state["thumbnail_bytes"] = image_bytes
-
-                st.success("Thumbnail image generated!")
-
-            except RequestException as error:
-                st.error(
-                    "Image generation failed. Check the image API "
-                    "key, available credits, model access, and connection."
-                )
-                st.caption(
-                    f"Technical error: {type(error).__name__}"
-                )
-            except Exception as error:
-                st.error(
-                    "Could not process the generated image. "
-                    "Check the API response and app logs."
-                )
-                st.caption(
-                    f"Technical error: {type(error).__name__}"
-                )
-
-    if "thumbnail_bytes" in st.session_state:
+    if st.session_state.thumbnail:
         st.image(
-            st.session_state["thumbnail_bytes"],
-            caption="Your generated thumbnail concept",
-            use_container_width=True
+            st.session_state.thumbnail,
+            caption="Your generated YouTube thumbnail",
+            use_container_width=True,
         )
 
         st.download_button(
             "⬇️ Download Thumbnail",
-            data=st.session_state["thumbnail_bytes"],
-            file_name="virallab_thumbnail.jpg",
-            mime="image/jpeg",
-            key="download_thumbnail"
+            data=st.session_state.thumbnail,
+            file_name=(
+                "ViralLab_Thumbnail."
+                + st.session_state.thumbnail_ext
+            ),
+            mime=st.session_state.thumbnail_mime,
+            use_container_width=True,
         )
 
-# --------------------------------------------------
-# FOOTER
-# --------------------------------------------------
+    else:
+        st.info(
+            "No thumbnail is available for this generation. "
+            "Your strategy is safe. Check the Pollinations API key, "
+            "account balance and usage limits before trying again."
+        )
 
 st.divider()
 st.caption(
-    "ViralLab uses Groq for text generation and optionally "
-    "Pollinations for image generation. AI output may contain "
-    "errors. Verify product specifications, prices, and current "
-    "claims before publishing."
+    "ViralLab uses AI-generated content. Verify product specifications, "
+    "prices, statistics and other factual claims before publishing."
         )
