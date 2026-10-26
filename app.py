@@ -75,8 +75,10 @@ if st.button("🚀 Generate My AI Strategy"):
             client = Groq(api_key=api_key)
 
             prompt = f"""
+
 You are an expert YouTube content strategist.
-Create a specific, practical strategy for this video.
+
+Create a practical strategy for this video.
 
 Channel niche: {niche.strip() or "General"}
 Topic: {topic.strip()}
@@ -84,42 +86,42 @@ Target audience: {audience.strip() or "General viewers"}
 Video style: {style}
 Language: {language}
 
-Write in the requested language. Include:
+FORMATTING RULES:
+- Use the nine exact headings below, each on its own line.
+- Keep headings in English even if the content is Hindi or Hinglish.
+- Do not add numbering to the headings.
+- Do not use a table for video ideas.
+- Never invent current prices, product specifications, or statistics.
+- Mark facts that need verification.
 
-1. CONTENT ANGLE
-Explain the viewer's problem and why the video matters.
+CONTENT ANGLE
+Explain the viewer's problem and the video's unique value.
 
-2. FIVE VIDEO IDEAS
-Make each idea distinct and specific.
+FIVE VIDEO IDEAS
+Give five distinct ideas with short explanations.
 
-3. FIVE CLICKABLE TITLES
-Use curiosity without misleading clickbait.
+FIVE CLICKABLE TITLES
+Write five compelling but honest titles.
 
-4. THUMBNAIL CONCEPT
-Describe the composition, subject, colors, and 2-4 words
-of thumbnail text.
+THUMBNAIL CONCEPT
+Describe the visual, composition, colors, and 2-4 words of text.
 
-5. OPENING HOOK
-Write a compelling opening of around 15 seconds.
+OPENING HOOK
+Write an engaging opening of approximately 15 seconds.
 
-6. COMPLETE VIDEO SCRIPT
-Include the hook, introduction, detailed main points,
+COMPLETE VIDEO SCRIPT
+Write a complete, natural script with an introduction, main points,
 examples, transitions, conclusion, and call to action.
-Make it natural to speak aloud.
 
-7. SEO DESCRIPTION
+SEO DESCRIPTION
 Write a ready-to-use YouTube description.
 
-8. KEYWORDS AND HASHTAGS
+KEYWORDS AND HASHTAGS
 Suggest relevant search phrases and hashtags.
-Do not promise search rankings.
 
-9. GROWTH PLAN
-Give five actionable recommendations for this video.
+GROWTH PLAN
+Give five practical recommendations for this video.
 
-Be specific, avoid filler, and do not invent current facts,
-product specifications, or statistics. Mark uncertainty
-when information needs verification.
 """
 
             with st.spinner(
