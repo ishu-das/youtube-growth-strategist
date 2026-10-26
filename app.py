@@ -669,4 +669,4 @@ else:
 
             # Full list remains accessible even if the AI formatting differs.
             with st.expander("View all items in this section"):
-      
+
