@@ -1,13 +1,12 @@
+
 import re
-import html
 import requests
 import streamlit as st
 from groq import Groq
 
-# ==========================================================
+# =====================================================
 # VIRALLAB STUDIO
-# Robust input wizard, strategy results, and image generation
-# ==========================================================
+# =====================================================
 
 st.set_page_config(
     page_title="ViralLab Studio",
@@ -15,39 +14,39 @@ st.set_page_config(
     layout="centered",
 )
 
-# -------------------- ANIMATED DESIGN --------------------
+# --------------------- DESIGN ---------------------
 
 st.markdown("""
 <style>
-@keyframes reveal {
-    from {opacity: 0; transform: translateY(14px);}
-    to {opacity: 1; transform: translateY(0);}
+@keyframes enter {
+    from {opacity:0; transform:translateY(14px);}
+    to {opacity:1; transform:translateY(0);}
 }
-@keyframes gradient {
-    0% {background-position: 0% 50%;}
-    50% {background-position: 100% 50%;}
-    100% {background-position: 0% 50%;}
+@keyframes movebg {
+    0% {background-position:0% 50%}
+    50% {background-position:100% 50%}
+    100% {background-position:0% 50%}
 }
 .block-container {
     max-width: 850px;
     padding-top: 2rem;
-    padding-bottom: 3rem;
+    padding-bottom: 4rem;
 }
 .hero {
     padding: 1.5rem;
-    border-radius: 20px;
     border: 1px solid #7669ad;
+    border-radius: 20px;
     background: linear-gradient(120deg,#17152b,#292044,#102c3a,#17152b);
     background-size: 300% 300%;
-    animation: gradient 12s ease infinite;
-    margin-bottom: 1.3rem;
+    animation: movebg 12s ease infinite;
+    margin-bottom: 1.5rem;
 }
-.motion-card {
+.panel {
     padding: 1.2rem;
-    border-radius: 16px;
     border: 1px solid #62578b;
+    border-radius: 17px;
     background: rgba(120,110,170,.07);
-    animation: reveal .4s ease both;
+    animation: enter .4s ease both;
     margin: .7rem 0 1rem;
 }
 .step-label {
@@ -56,28 +55,17 @@ st.markdown("""
     font-weight: 700;
     letter-spacing: .08em;
 }
-.big-question {
-    font-size: 1.55rem;
-    font-weight: 750;
-    margin: .6rem 0;
-}
-div[data-testid="stExpander"] {
-    border-radius: 12px;
-    border: 1px solid #ffffff22;
+div[data-testid="stImage"] img {
+    border-radius: 15px;
+    animation: enter .5s ease both;
 }
 .stButton button, .stDownloadButton button {
     border-radius: 12px;
-    transition: transform .2s ease, box-shadow .2s ease;
+    transition: transform .2s ease;
 }
 .stButton button:hover, .stDownloadButton button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px #8b5cf633;
 }
-div[data-testid="stImage"] img {
-    border-radius: 15px;
-    animation: reveal .6s ease both;
-}
-hr {border-color: #ffffff20;}
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation: none !important;
@@ -87,19 +75,7 @@ hr {border-color: #ffffff20;}
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- CONSTANTS --------------------
-
-SECTIONS = [
-    "CONTENT ANGLE",
-    "FIVE VIDEO IDEAS",
-    "FIVE CLICKABLE TITLES",
-    "THUMBNAIL CONCEPT",
-    "OPENING HOOK",
-    "COMPLETE VIDEO SCRIPT",
-    "SEO DESCRIPTION",
-    "KEYWORDS AND HASHTAGS",
-    "GROWTH PLAN",
-]
+# --------------------- QUESTIONS ---------------------
 
 QUESTIONS = [
     {
@@ -127,9 +103,9 @@ QUESTIONS = [
         ],
     },
     {
-        "key": "video_style",
+        "key": "style",
         "title": "Choose your video style",
-        "help": "How will you present your video?",
+        "help": "How do you want to present your video?",
         "options": [
             "Informative", "Tutorial", "Comparison", "Review",
             "Listicle", "Storytelling", "Entertainment"
@@ -144,7 +120,7 @@ QUESTIONS = [
     {
         "key": "thumbnail_style",
         "title": "Choose your thumbnail style",
-        "help": "Your thumbnail will be generated automatically.",
+        "help": "ViralLab will try to generate a thumbnail automatically.",
         "options": [
             "Bold YouTube creator style",
             "Photorealistic tech review",
@@ -155,158 +131,156 @@ QUESTIONS = [
     },
 ]
 
+SECTION_NAMES = [
+    "CONTENT ANGLE",
+    "FIVE VIDEO IDEAS",
+    "FIVE CLICKABLE TITLES",
+    "THUMBNAIL CONCEPT",
+    "OPENING HOOK",
+    "COMPLETE VIDEO SCRIPT",
+    "SEO DESCRIPTION",
+    "KEYWORDS AND HASHTAGS",
+    "GROWTH PLAN",
+]
+
 DEFAULTS = {
-    "wizard_step": 0,
+    "step": 0,
     "niche": "Gaming",
     "topic": "",
     "audience": "Students",
-    "video_style": "Informative",
+    "style": "Informative",
     "language": "English",
     "thumbnail_style": "Bold YouTube creator style",
     "extra_details": "",
     "strategy": "",
     "sections": {},
     "result_index": 0,
-    "item_indices": {},
+    "item_index": 0,
     "thumbnail": None,
     "thumbnail_ext": "jpg",
     "thumbnail_mime": "image/jpeg",
     "error": "",
-    "generation_requested": False,
+    "warning": "",
 }
 
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-# -------------------- WIZARD FUNCTIONS --------------------
+# --------------------- NAVIGATION ---------------------
 
-def save_and_next(step):
+def next_step(step):
     question = QUESTIONS[step]
     key = question["key"]
-    draft = st.session_state.get("draft_" + key, st.session_state.get(key, ""))
+    value = st.session_state.get("draft_" + key, st.session_state[key])
 
     st.session_state.error = ""
 
-    if key == "topic" and not str(draft).strip():
+    if key == "topic" and not str(value).strip():
         st.session_state.error = "Please enter your video topic before continuing."
         return
 
-    st.session_state[key] = draft
+    st.session_state[key] = value
 
     if step == len(QUESTIONS) - 1:
         st.session_state.extra_details = st.session_state.get(
             "draft_extra_details", ""
         )
-        st.session_state.generation_requested = True
+        generate_content()
     else:
-        st.session_state.wizard_step = step + 1
+        st.session_state.step = step + 1
 
 
-def go_back(step):
+def previous_step(step):
     question = QUESTIONS[step]
     key = question["key"]
 
-    if "draft_" + key in st.session_state:
-        st.session_state[key] = st.session_state["draft_" + key]
-
-    if step == len(QUESTIONS) - 1:
-        st.session_state.extra_details = st.session_state.get(
-            "draft_extra_details", ""
-        )
-
+    st.session_state[key] = st.session_state.get(
+        "draft_" + key, st.session_state[key]
+    )
     st.session_state.error = ""
-    st.session_state.wizard_step = max(0, step - 1)
+    st.session_state.step = max(0, step - 1)
 
 
-def reset_project():
+def new_project():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.rerun()
 
 
-def go_to_result(index):
+def go_result(index):
     st.session_state.result_index = index
+    st.session_state.item_index = 0
 
 
-def go_to_item(section, index):
-    st.session_state.item_indices[section] = index
+# --------------------- AI PROMPT ---------------------
 
-
-# -------------------- STRATEGY PROMPT --------------------
-
-def make_strategy_prompt():
-    headings = "\n".join(SECTIONS)
+def build_prompt():
+    headings = "\n".join(SECTION_NAMES)
 
     return f"""
 You are ViralLab, an expert YouTube growth strategist.
 
-Niche: {st.session_state.niche}
-Topic: {st.session_state.topic}
-Audience: {st.session_state.audience}
-Video style: {st.session_state.video_style}
-Language: {st.session_state.language}
+NICHE: {st.session_state.niche}
+TOPIC: {st.session_state.topic}
+TARGET AUDIENCE: {st.session_state.audience}
+VIDEO STYLE: {st.session_state.style}
+LANGUAGE: {st.session_state.language}
 
-Write the strategy in the selected language.
+Create a useful, specific YouTube strategy.
 
-Use these nine headings EXACTLY, each on its own line:
+Use these exact headings, each on its own line:
 {headings}
 
 Rules:
+- Write in the selected language.
 - Give exactly five different video ideas.
 - Give exactly five different clickable titles.
-- Do not repeat ideas or titles.
-- Include a strong opening hook.
-- Write a complete natural script with an ending.
-- Include a relevant SEO description, keywords, and hashtags.
-- Give a practical growth plan for a new creator.
-- Describe a clear visual thumbnail concept.
-- Do not invent prices, specifications, statistics, or test results.
+- Make the opening hook compelling.
+- Write a complete natural video script with an ending.
+- Include a useful SEO description, keywords and hashtags.
+- Include a realistic growth plan.
+- Describe a visual thumbnail concept.
+- Do not invent product specifications, prices or statistics.
 - Use Markdown formatting.
-- Do not wrap the entire response in a code block.
+- Do not put the whole response inside a code block.
+- Do not repeat the same idea across sections.
 """.strip()
 
 
-def split_strategy(text):
-    """Split headings when possible; never require a perfect AI response."""
+def parse_sections(text):
     matches = []
 
-    for title in SECTIONS:
+    for name in SECTION_NAMES:
         pattern = re.compile(
             r"(?im)^\s*(?:#{1,6}\s*)?(?:\d+[\.\):\-]\s*)?"
-            + re.escape(title)
+            + re.escape(name)
             + r"\s*:?\s*$"
         )
-
         for match in pattern.finditer(text):
-            matches.append((match.start(), match.end(), title))
+            matches.append((match.start(), match.end(), name))
 
-    matches.sort(key=lambda x: x[0])
-
+    matches.sort(key=lambda item: item[0])
     result = {}
-    seen = set()
 
-    for i, (_, end, title) in enumerate(matches):
-        if title in seen:
+    for index, (start, end, name) in enumerate(matches):
+        if name in result:
             continue
 
-        seen.add(title)
-
-        next_start = len(text)
-        for j in range(i + 1, len(matches)):
-            if matches[j][0] > end:
-                next_start = matches[j][0]
-                break
-
+        next_start = (
+            matches[index + 1][0]
+            if index + 1 < len(matches)
+            else len(text)
+        )
         body = text[end:next_start].strip()
+
         if body:
-            result[title] = body
+            result[name] = body
 
     return result
 
 
-def split_items(text):
-    """Split numbered or bulleted lists into separate cards."""
+def parse_items(text):
     items = []
     current = []
 
@@ -326,50 +300,41 @@ def split_items(text):
     return [item for item in items if item]
 
 
-# -------------------- IMAGE GENERATION --------------------
+# --------------------- THUMBNAIL ---------------------
 
-def make_image_prompt():
+def image_prompt():
     concept = st.session_state.sections.get(
         "THUMBNAIL CONCEPT",
-        f"A compelling visual about {st.session_state.topic}.",
+        "Create a striking visual about " + st.session_state.topic,
     )
 
-    styles = {
-        "Bold YouTube creator style":
-            "bold composition, dramatic lighting, vibrant contrast",
-        "Photorealistic tech review":
-            "photorealistic materials and professional studio lighting",
-        "Minimal and professional":
-            "minimal composition, clean background, elegant lighting",
-        "Gaming and entertainment":
-            "dynamic gaming atmosphere and cinematic lighting",
-        "Educational and documentary":
-            "cinematic photography and clear visual storytelling",
+    style_map = {
+        "Bold YouTube creator style": "bold colors, strong contrast, dramatic lighting",
+        "Photorealistic tech review": "photorealistic product photography, studio lighting",
+        "Minimal and professional": "clean minimal design, elegant lighting",
+        "Gaming and entertainment": "cinematic gaming atmosphere, dynamic composition",
+        "Educational and documentary": "cinematic documentary photography",
     }
 
     extra = st.session_state.extra_details.strip()
-    extra_text = f" Extra direction: {extra}." if extra else ""
 
     return f"""
-Create a professional 16:9 YouTube thumbnail.
-
+Create a professional 16:9 YouTube thumbnail image.
 Topic: {st.session_state.topic}
 Niche: {st.session_state.niche}
-Audience: {st.session_state.audience}
 Concept: {concept}
-Visual style: {styles.get(st.session_state.thumbnail_style, "cinematic lighting")}.
-
-Use one clear focal subject, strong contrast and balanced composition.
+Visual style: {style_map.get(st.session_state.thumbnail_style, "cinematic lighting")}.
+Use one clear focal subject and strong contrast.
 Leave space for a title to be added later.
-No text, letters, logos, or watermarks.
-{extra_text}
+Do not render text, logos or watermarks.
+Additional direction: {extra}
 """.strip()
 
 
-def generate_image(prompt, api_key):
+def generate_thumbnail(api_key):
     url = (
         "https://gen.pollinations.ai/image/"
-        + requests.utils.quote(prompt, safe="")
+        + requests.utils.quote(image_prompt(), safe="")
     )
 
     response = requests.get(
@@ -385,51 +350,49 @@ def generate_image(prompt, api_key):
     response.raise_for_status()
 
     content_type = response.headers.get("Content-Type", "").lower()
+
     if not content_type.startswith("image/"):
         raise ValueError("The image service did not return an image.")
 
     if "png" in content_type:
-        extension, mime = "png", "image/png"
+        ext, mime = "png", "image/png"
     elif "webp" in content_type:
-        extension, mime = "webp", "image/webp"
+        ext, mime = "webp", "image/webp"
     else:
-        extension, mime = "jpg", "image/jpeg"
+        ext, mime = "jpg", "image/jpeg"
 
-    return response.content, extension, mime
+    return response.content, ext, mime
 
 
-# -------------------- GENERATION WORKFLOW --------------------
+# --------------------- GENERATION ---------------------
 
-def run_generation():
+def generate_content():
     topic = str(st.session_state.topic).strip()
 
     if not topic:
-        st.session_state.error = (
-            "Your topic is empty. Please go back to Step 2 and enter it."
-        )
-        st.session_state.wizard_step = 1
-        st.session_state.generation_requested = False
+        st.session_state.error = "Your video topic is missing. Return to Step 2."
+        st.session_state.step = 1
         return
 
     groq_key = st.secrets.get("GROQ_API_KEY", "")
-    image_key = st.secrets.get("POLLINATIONS_API_KEY", "")
+    pollinations_key = st.secrets.get("POLLINATIONS_API_KEY", "")
 
     if not groq_key:
         st.session_state.error = (
-            "GROQ_API_KEY is missing from Streamlit Secrets."
+            "GROQ_API_KEY is missing. Add it under Streamlit Settings > Secrets."
         )
-        st.session_state.generation_requested = False
         return
 
-    # Clear previous project output before generating a new one.
+    # Clear old results before starting a new generation.
     st.session_state.strategy = ""
     st.session_state.sections = {}
     st.session_state.result_index = 0
-    st.session_state.item_indices = {}
+    st.session_state.item_index = 0
     st.session_state.thumbnail = None
+    st.session_state.warning = ""
 
     try:
-        with st.spinner("🧠 Generating your YouTube strategy..."):
+        with st.spinner("🧠 Creating your YouTube strategy..."):
             client = Groq(api_key=groq_key)
 
             response = client.chat.completions.create(
@@ -437,12 +400,9 @@ def run_generation():
                 messages=[
                     {
                         "role": "system",
-                        "content": (
-                            "You are a precise YouTube strategist. "
-                            "Follow the headings and formatting requirements."
-                        ),
+                        "content": "You are a precise YouTube growth strategist.",
                     },
-                    {"role": "user", "content": make_strategy_prompt()},
+                    {"role": "user", "content": build_prompt()},
                 ],
                 temperature=0.6,
                 max_completion_tokens=5000,
@@ -451,75 +411,62 @@ def run_generation():
             strategy = response.choices[0].message.content or ""
 
             if not strategy.strip():
-                raise ValueError("The AI returned an empty strategy.")
+                raise ValueError("The AI returned an empty response.")
 
-            # Save the entire answer before trying to parse sections.
+            # Always save the complete response before parsing it.
             st.session_state.strategy = strategy
+            parsed = parse_sections(strategy)
 
-            parsed = split_strategy(strategy)
-            st.session_state.sections = parsed
-
-            # If parsing fails, make the full strategy a visible result.
-            if not parsed:
-                st.session_state.sections = {
-                    "COMPLETE STRATEGY": strategy
-                }
+            if parsed:
+                st.session_state.sections = parsed
+            else:
+                st.session_state.sections = {"COMPLETE STRATEGY": strategy}
 
     except Exception as exc:
         st.session_state.error = (
-            "Strategy generation failed. Check the Groq key, model "
-            "availability, network connection, and usage limits. "
+            "Strategy generation failed. Check the Groq API key, model "
+            "availability, internet connection and usage limits. "
             f"Details: {str(exc)[:250]}"
         )
-        st.session_state.generation_requested = False
         return
 
-    # Image errors must never erase the strategy.
-    if image_key:
+    # Image generation is independent. Its failure cannot erase the strategy.
+    if pollinations_key:
         try:
             with st.spinner("🎨 Generating your thumbnail..."):
-                image, extension, mime = generate_image(
-                    make_image_prompt(), image_key
-                )
+                image, ext, mime = generate_thumbnail(pollinations_key)
                 st.session_state.thumbnail = image
-                st.session_state.thumbnail_ext = extension
+                st.session_state.thumbnail_ext = ext
                 st.session_state.thumbnail_mime = mime
-
         except Exception as exc:
-            st.session_state.error = (
-                "Your strategy is ready, but thumbnail generation failed. "
-                "Check the Pollinations key, account usage, and connection. "
-                f"Details: {str(exc)[:200]}"
+            st.session_state.warning = (
+                "The strategy is ready, but thumbnail generation failed. "
+                "Check your Pollinations key, account usage and model availability. "
+                f"Details: {str(exc)[:180]}"
             )
     else:
-        st.session_state.error = (
-            "Your strategy is ready. Add POLLINATIONS_API_KEY in "
-            "Streamlit Secrets to enable automatic thumbnails."
+        st.session_state.warning = (
+            "Strategy generated. Add POLLINATIONS_API_KEY in Streamlit Secrets "
+            "to enable automatic thumbnail generation."
         )
 
-    st.session_state.generation_requested = False
 
-
-# -------------------- HEADER --------------------
+# --------------------- HEADER ---------------------
 
 st.markdown("""
 <div class="hero">
-  <h1>🚀 ViralLab Studio</h1>
-  <p>Your AI-powered YouTube content workspace.</p>
-  <p>Plan smarter. Create faster. Grow your channel.</p>
+<h1>🚀 ViralLab Studio</h1>
+<p>Your AI-powered YouTube content workspace.</p>
+<p>Plan smarter. Create faster. Grow your channel.</p>
 </div>
 """, unsafe_allow_html=True)
 
 st.caption("Powered by Groq for strategy and Pollinations for image generation.")
 
-# Run generation only after the final form has submitted.
-if st.session_state.generation_requested and not st.session_state.strategy:
-    run_generation()
-
-# -------------------- INPUT WIZARD --------------------
+# --------------------- WIZARD ---------------------
 
 if not st.session_state.strategy:
-    step = st.session_state.wizard_step
+    step = st.session_state.step
     question = QUESTIONS[step]
     key = question["key"]
     draft_key = "draft_" + key
@@ -528,15 +475,15 @@ if not st.session_state.strategy:
     st.caption(f"STEP {step + 1} OF {len(QUESTIONS)}")
 
     st.markdown(
-        f'<div class="motion-card">'
+        f'<div class="panel">'
         f'<div class="step-label">YOUR CONTENT JOURNEY</div>'
-        f'<div class="big-question">{html.escape(question["title"])}</div>'
-        f'<p>{html.escape(question["help"])}</p>'
+        f'<h2>{question["title"]}</h2>'
+        f'<p>{question["help"]}</p>'
         f'</div>',
         unsafe_allow_html=True,
     )
 
-    with st.form(f"wizard_form_{step}", clear_on_submit=False):
+    with st.form(f"question_form_{step}", clear_on_submit=False):
         if question.get("type") == "text":
             st.text_input(
                 "Video topic",
@@ -546,13 +493,13 @@ if not st.session_state.strategy:
             )
         else:
             options = question["options"]
-            current = st.session_state.get(key, options[0])
-            selected_index = options.index(current) if current in options else 0
+            current = st.session_state[key]
+            index = options.index(current) if current in options else 0
 
             st.radio(
                 question["title"],
                 options,
-                index=selected_index,
+                index=index,
                 key=draft_key,
                 label_visibility="collapsed",
             )
@@ -571,104 +518,105 @@ if not st.session_state.strategy:
                 st.form_submit_button(
                     "← Back",
                     use_container_width=True,
-                    on_click=go_back,
+                    on_click=previous_step,
                     args=(step,),
                 )
 
         with right:
-            button_label = (
+            label = (
                 "✨ Generate My Content"
                 if step == len(QUESTIONS) - 1
                 else "Next →"
             )
+
             st.form_submit_button(
-                button_label,
+                label,
                 type="primary",
                 use_container_width=True,
-                on_click=save_and_next,
+                on_click=next_step,
                 args=(step,),
             )
 
     if st.session_state.error:
         st.error(st.session_state.error)
 
-# -------------------- RESULTS --------------------
+# --------------------- RESULTS ---------------------
 
 else:
     if st.session_state.error:
-        st.warning(st.session_state.error)
+        st.error(st.session_state.error)
 
-    st.success("Your strategy has been generated.")
+    if st.session_state.warning:
+        st.warning(st.session_state.warning)
 
-    # Always create a usable result list.
-    sections = st.session_state.sections
-    if not sections:
-        sections = {"COMPLETE STRATEGY": st.session_state.strategy}
-        st.session_state.sections = sections
+    st.success("Your strategy is ready!")
 
-    section_names = list(sections.keys())
-    idx = max(0, min(st.session_state.result_index, len(section_names) - 1))
-    title = section_names[idx]
-    body = sections.get(title, "").strip()
+    # Fallback prevents an empty results screen.
+    if not st.session_state.sections:
+        st.session_state.sections = {
+            "COMPLETE STRATEGY": st.session_state.strategy
+        }
 
-    st.progress((idx + 1) / len(section_names))
-    st.caption(f"RESULT SECTION {idx + 1} OF {len(section_names)}")
+    names = list(st.session_state.sections.keys())
+    idx = max(0, min(st.session_state.result_index, len(names) - 1))
+    title = names[idx]
+    body = st.session_state.sections.get(title, "").strip()
+
+    if not body:
+        body = st.session_state.strategy
+
+    st.progress((idx + 1) / len(names))
+    st.caption(f"RESULT SECTION {idx + 1} OF {len(names)}")
 
     st.markdown(
-        f'<div class="motion-card">'
+        f'<div class="panel">'
         f'<div class="step-label">YOUR AI RESULTS</div>'
-        f'<div class="big-question">{html.escape(title.title())}</div>'
+        f'<h2>{title.title()}</h2>'
         f'</div>',
         unsafe_allow_html=True,
     )
 
-    # If a parsed section is empty, show the full strategy instead.
-    if not body:
-        body = st.session_state.strategy
-
-    # Ideas and titles can be viewed one at a time.
+    # Ideas and titles can be browsed individually.
     if title in ("FIVE VIDEO IDEAS", "FIVE CLICKABLE TITLES"):
-        items = split_items(body)
+        items = parse_items(body)
 
         if items:
-            item_index = max(
-                0,
-                min(st.session_state.item_indices.get(title, 0), len(items) - 1),
-            )
+            item_idx = max(0, min(st.session_state.item_index, len(items) - 1))
 
-            st.progress((item_index + 1) / len(items))
-            st.caption(f"ITEM {item_index + 1} OF {len(items)}")
+            st.caption(f"ITEM {item_idx + 1} OF {len(items)}")
+            st.progress((item_idx + 1) / len(items))
 
-            st.markdown('<div class="motion-card">', unsafe_allow_html=True)
-            st.markdown(f"### {item_index + 1}")
-            st.markdown(items[item_index])
+            st.markdown('<div class="panel">', unsafe_allow_html=True)
+            st.markdown(f"### {item_idx + 1}")
+            st.markdown(items[item_idx])
             st.markdown('</div>', unsafe_allow_html=True)
 
             item_left, item_right = st.columns(2)
 
             with item_left:
-                if item_index > 0:
+                if item_idx > 0:
                     st.button(
                         "← Previous item",
-                        key=f"prev_item_{title}_{item_index}",
+                        key=f"previous_item_{idx}_{item_idx}",
                         use_container_width=True,
-                        on_click=go_to_item,
-                        args=(title, item_index - 1),
+                        on_click=lambda: setattr(
+                            st.session_state, "item_index", item_idx - 1
+                        ),
                     )
 
             with item_right:
-                if item_index < len(items) - 1:
+                if item_idx < len(items) - 1:
                     st.button(
                         "Next item →",
-                        key=f"next_item_{title}_{item_index}",
+                        key=f"next_item_{idx}_{item_idx}",
                         type="primary",
                         use_container_width=True,
-                        on_click=go_to_item,
-                        args=(title, item_index + 1),
+                        on_click=lambda: setattr(
+                            st.session_state, "item_index", item_idx + 1
+                        ),
                     )
 
-            # Full list remains accessible even if the AI formatting differs.
-                        with st.expander("View all items in this section"):
+            with st.expander("View all items"):
                 st.markdown(body)
         else:
             st.markdown(body)
@@ -680,29 +628,29 @@ else:
         data=body,
         file_name=title.lower().replace(" ", "_") + ".md",
         mime="text/markdown",
-        key=f"download_section_{idx}",
+        key=f"section_download_{idx}",
         use_container_width=True,
     )
 
     st.divider()
-    previous, next_column = st.columns(2)
+    previous, following = st.columns(2)
 
     with previous:
         if idx > 0:
             st.button(
                 "← Previous section",
                 use_container_width=True,
-                on_click=go_to_result,
+                on_click=go_result,
                 args=(idx - 1,),
             )
 
-    with next_column:
-        if idx < len(section_names) - 1:
+    with following:
+        if idx < len(names) - 1:
             st.button(
                 "Next section →",
                 type="primary",
                 use_container_width=True,
-                on_click=go_to_result,
+                on_click=go_result,
                 args=(idx + 1,),
             )
         else:
@@ -725,7 +673,7 @@ else:
     if st.session_state.thumbnail:
         st.image(
             st.session_state.thumbnail,
-            caption="AI-generated YouTube thumbnail",
+            caption="AI-generated thumbnail",
             use_container_width=True,
         )
 
@@ -739,16 +687,4 @@ else:
     else:
         st.info(
             "No thumbnail is available for this run. "
-            "Your strategy is still available above."
-        )
-
-    st.button(
-        "🔄 Start a New Project",
-        use_container_width=True,
-        on_click=reset_project,
-    )
-
-st.divider()
-st.caption(
-    "ViralLab uses AI-generated content. Verify factual claims before publishing."
-)
+            "Your strat
